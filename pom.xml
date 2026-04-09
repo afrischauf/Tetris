@@ -159,7 +159,7 @@
         <dependency>
             <groupId>com.github.heroiclabs.nakama-java</groupId>
             <artifactId>nakama-java-all</artifactId>
-            <version>04bf397</version>
+            <version>master-SNAPSHOT</version>
             <type>jar</type>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.slf4j/slf4j-simple -->
