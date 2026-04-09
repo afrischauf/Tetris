@@ -4,8 +4,8 @@ import helper.TerminalHelper;
 
 import com.heroiclabs.nakama.api.Group;
 import com.heroiclabs.nakama.api.Rpc;
+import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
-import nakama.com.google.gson.Gson;
 
 import java.awt.event.KeyEvent;
 import java.util.HashMap;

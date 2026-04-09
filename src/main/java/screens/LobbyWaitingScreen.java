@@ -6,11 +6,11 @@ import helper.TerminalHelper;
 import com.heroiclabs.nakama.api.Group;
 import com.heroiclabs.nakama.api.GroupUserList;
 import com.heroiclabs.nakama.api.UserGroupList;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import communication.MatchSendHelper;
 import communication.Player;
 import lombok.extern.slf4j.Slf4j;
-import nakama.com.google.common.reflect.TypeToken;
-import nakama.com.google.gson.Gson;
 
 import java.awt.event.KeyEvent;
 import java.lang.reflect.Type;

@@ -7,7 +7,7 @@ import logic.pieces.Tetromino;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import nakama.com.google.common.base.Strings;
+import com.google.common.base.Strings;
 import screens.AsciiPanel;
 import screens.PlayOfflineScreen;
 import screens.PlayOnlineScreen;

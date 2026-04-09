@@ -1,6 +1,6 @@
 package logic;
 
-import nakama.com.google.common.base.Strings;
+import com.google.common.base.Strings;
 
 /**
  * StringUtils class provides utility methods for manipulating strings.

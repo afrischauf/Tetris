@@ -3,7 +3,7 @@ package helper;
 
 import config.Constants;
 import logic.GarbagePieceHandler;
-import nakama.com.google.common.base.Strings;
+import com.google.common.base.Strings;
 import screens.AsciiPanel;
 
 
