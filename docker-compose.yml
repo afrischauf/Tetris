@@ -61,7 +61,7 @@ services:
           - targets: ['nakama:9100']
       EON
       prometheus --config.file=./prometheus.yml
-      EOF'      
+      EOF'
     ports:
       - '9090:9090'
 volumes:

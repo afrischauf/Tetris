@@ -88,4 +88,3 @@ public class UpdateBoardStateDTO {
         return t;
     }
 }
-
