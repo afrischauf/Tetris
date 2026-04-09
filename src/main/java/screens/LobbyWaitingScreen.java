@@ -149,7 +149,7 @@ public class LobbyWaitingScreen implements Screen, Runnable {
     @Override
     public void displayOutput(AsciiPanel terminal) {
         if (startGame) {
-            MainClass.aClass.screen = new PlayOnlineScreen(terminal, me.isHost());
+            MainClass.aClass.setScreen(new PlayOnlineScreen(terminal, me.isHost()));
             MainClass.aClass.repaint();
             return;
         }
@@ -261,6 +261,14 @@ public class LobbyWaitingScreen implements Screen, Runnable {
         } else if (playerId.equals(opponent.getPlayerId())) {
             opponent.setReady(state);
         }
+    }
+
+    @Override
+    public void close() {
+        exec.shutdownNow();
+        me = null;
+        opponent = null;
+        startGame = false;
     }
 
 }

@@ -16,7 +16,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import lombok.extern.slf4j.Slf4j;
 
+
+@Slf4j
 public class PlayOnlineScreen implements Screen, Runnable {
 
     private static TetrisField field;
@@ -27,22 +30,24 @@ public class PlayOnlineScreen implements Screen, Runnable {
     public static OpponentTetrisField opponentTetrisField;
 
     private final ScheduledExecutorService exec;
+    private final ScheduledExecutorService inputExecutor;
 
     private final boolean isHost;
 
     private final Set<KeyPlay> pressedKeys = new HashSet<>();
+    private boolean matchExited;
 
     public PlayOnlineScreen(AsciiPanel terminal, boolean isHost) {
         field = new TetrisField(1, this, (terminal.getWidthInCharacters() - 12) / 2, 16);
         startTime = System.currentTimeMillis();
         opponentTetrisField = new OpponentTetrisField((terminal.getWidthInCharacters()) / 2 + 30, 16);
         exec = Executors.newSingleThreadScheduledExecutor();
+        inputExecutor = Executors.newSingleThreadScheduledExecutor();
         this.isHost = isHost;
         if (isHost) {
             exec.scheduleAtFixedRate(PlayOnlineScreen::tickMaster, 0, 1, TimeUnit.SECONDS);
         }
-        ScheduledExecutorService repaint = Executors.newSingleThreadScheduledExecutor();
-        repaint.scheduleAtFixedRate(this, 0, Constants.KEYLISTENERTIMER, TimeUnit.MILLISECONDS);
+        inputExecutor.scheduleAtFixedRate(this, 0, Constants.KEYLISTENERTIMER, TimeUnit.MILLISECONDS);
 
     }
 
@@ -56,15 +61,18 @@ public class PlayOnlineScreen implements Screen, Runnable {
     }
 
     public void exitGroupMatch() {
+        if (matchExited) {
+            return;
+        }
+        matchExited = true;
         try {
-            MainClass.aClass.socket.leaveMatch(MainClass.aClass.match.getMatchId()).get();
-            if (MainClass.aClass.createdGroup) {
-                MainClass.aClass.client.deleteGroup(MainClass.aClass.session, MainClass.aClass.group_id);
-            } else {
-                MainClass.aClass.client.leaveGroup(MainClass.aClass.session, MainClass.aClass.group_id);
+            if (MainClass.aClass.socket != null && MainClass.aClass.match != null) {
+                MainClass.aClass.socket.leaveMatch(MainClass.aClass.match.getMatchId()).get();
             }
         } catch (InterruptedException | ExecutionException e) {
-            throw new RuntimeException(e);
+            log.debug("Failed to leave match cleanly", e);
+        } finally {
+            MainClass.aClass.cleanupLobbyMembership();
         }
 
     }
@@ -72,18 +80,12 @@ public class PlayOnlineScreen implements Screen, Runnable {
     @Override
     public void displayOutput(AsciiPanel terminal) {
         if (win) {
-            exitGroupMatch();
-            if (isHost)
-                exec.shutdownNow();
-            MainClass.aClass.screen = new WinScreen();
+            MainClass.aClass.setScreen(new WinScreen());
             MainClass.aClass.repaint();
             return;
         }
         if (loseScreen) {
-            exitGroupMatch();
-            if (isHost)
-                exec.shutdownNow();
-            MainClass.aClass.screen = new OnlineLoseScreen();
+            MainClass.aClass.setScreen(new OnlineLoseScreen());
             MainClass.aClass.repaint();
             return;
         }
@@ -105,20 +107,45 @@ public class PlayOnlineScreen implements Screen, Runnable {
     }
 
     public void addKey(KeyEvent keyEvent) {
-        if (KeyPlay.getKey(keyEvent, false) != null)
-            pressedKeys.add(KeyPlay.getKey(keyEvent, false));
+        if (KeyPlay.getKey(keyEvent, false) != null) {
+            synchronized (pressedKeys) {
+                pressedKeys.add(KeyPlay.getKey(keyEvent, false));
+            }
+        }
     }
 
     public void removeKey(KeyEvent keyEvent) {
-        if (KeyPlay.getKey(keyEvent, false) != null)
-            pressedKeys.remove(KeyPlay.getKey(keyEvent, true));
+        if (KeyPlay.getKey(keyEvent, false) != null) {
+            synchronized (pressedKeys) {
+                pressedKeys.remove(KeyPlay.getKey(keyEvent, true));
+            }
+        }
     }
 
     @Override
     public void run() {
-        for (KeyPlay pressedKey : pressedKeys) {
-            pressedKey.execute(field);
-            pressedKey.incrementCounter();
+        synchronized (pressedKeys) {
+            for (KeyPlay pressedKey : pressedKeys) {
+                pressedKey.execute(field);
+                pressedKey.incrementCounter();
+            }
         }
+    }
+
+    @Override
+    public void close() {
+        inputExecutor.shutdownNow();
+        exec.shutdownNow();
+        if (field != null) {
+            field.shutdownThread();
+            field = null;
+        }
+        synchronized (pressedKeys) {
+            pressedKeys.clear();
+        }
+        opponentTetrisField = null;
+        win = false;
+        loseScreen = false;
+        exitGroupMatch();
     }
 }

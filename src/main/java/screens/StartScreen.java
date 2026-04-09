@@ -140,7 +140,7 @@ public class StartScreen implements Screen {
      */
     @Override
     public boolean finishInput() {
-        MainClass.aClass.screen = new LoginScreen();
+        MainClass.aClass.setScreen(new LoginScreen());
         return true;
     }
 }

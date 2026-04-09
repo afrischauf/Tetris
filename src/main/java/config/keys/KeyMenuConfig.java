@@ -109,12 +109,16 @@ public enum KeyMenuConfig {
      * configuration file using LdataParser.
      */
     public static void initializeKeymap() {
+        menuMap.clear();
         Map<String, Object> config = LdataParser.loadFrom(OsUtil.getConfigFile("tty-tetris.conf"));
         Map<String, Object> _menuMap = (Map) ((Map) config.get("keymap")).get("menuMap");
         for (String action : _menuMap.keySet()) {
             List<String> keyStrokes = (List) _menuMap.get(action);
             for (String keyStroke : keyStrokes) {
-                menuMap.put(keyStroke.toLowerCase(), action);
+                String normalizedKey = KeyBindingUtil.normalizeConfiguredKey(keyStroke);
+                if (normalizedKey != null) {
+                    menuMap.put(normalizedKey, action);
+                }
             }
         }
     }
@@ -130,10 +134,11 @@ public enum KeyMenuConfig {
 
     public static Screen execute(KeyEvent key, Screen screen, AsciiPanel terminal) {
         if (!(screen instanceof PlayOnlineScreen || screen instanceof PlayOfflineScreen)) {
-            if (menuMap.get(keyStrokeToString(key)) == null) {
+            String normalizedKey = keyStrokeToString(key);
+            if (menuMap.get(normalizedKey) == null) {
                 return screen;
             }
-            return KeyMenuConfig.valueOf(menuMap.get(keyStrokeToString(key)).toUpperCase()).execute(screen, terminal);
+            return KeyMenuConfig.valueOf(menuMap.get(normalizedKey).toUpperCase()).execute(screen, terminal);
         }
         return screen;
     }
@@ -145,6 +150,6 @@ public enum KeyMenuConfig {
      */
 
     private static String keyStrokeToString(KeyEvent key) {
-        return KeyEvent.getKeyText(key.getKeyCode()).toLowerCase();
+        return KeyBindingUtil.normalizeKeyEvent(key);
     }
 }

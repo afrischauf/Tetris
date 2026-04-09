@@ -29,8 +29,12 @@ public enum KeyPlay {
         public synchronized void execute(TetrisField field) {
             if (this.counter == 0) {
                 field.moveLeft();
-            } else if (this.counter >= dasMS && this.counter % arrMS == 0) {
-                field.moveLeft();
+            } else if (this.counter >= dasTicks) {
+                if (arrTicks <= 0) {
+                    field.dasLeft();
+                } else if ((this.counter - dasTicks) % arrTicks == 0) {
+                    field.moveLeft();
+                }
             }
         }
     },
@@ -42,8 +46,12 @@ public enum KeyPlay {
         public synchronized void execute(TetrisField field) {
             if (this.counter == 0) {
                 field.moveRight();
-            } else if (this.counter >= dasMS && this.counter % arrMS == 0) {
-                field.moveRight();
+            } else if (this.counter >= dasTicks) {
+                if (arrTicks <= 0) {
+                    field.dasRight();
+                } else if ((this.counter - dasTicks) % arrTicks == 0) {
+                    field.moveRight();
+                }
             }
         }
     },
@@ -75,11 +83,11 @@ public enum KeyPlay {
     SOFTDROP() {
         @Override
         public synchronized void execute(TetrisField field) {
-            if (sdfFPS < 0) {
+            if (softDropInstant) {
                 if (counter == 0) {
                     field.instantsdf();
                 }
-            } else if (this.counter % (sdfFPS * 10) == 0) {
+            } else if (counter == 0 || this.counter % softDropTicks == 0) {
                 field.softDrop();
             }
         }
@@ -106,27 +114,29 @@ public enum KeyPlay {
         }
     };
     /**
-     * This counter is used to save how long the key has been pressed in ms
+     * This counter tracks how many input ticks the key has been held for.
      */
     int counter;
 
     /**
-     * This Long is used to represent after how many milliseconds DAS should be implemented <br>
-     * It is set with {@link KeyPlay#initializeKeymap()}
+     * After how many input ticks DAS should kick in.
      */
-    private static long dasMS;
+    private static int dasTicks;
 
     /**
-     * This Long is used to represent the delay in milliseconds between ARR that should be implemented <br>
-     * It is set with {@link KeyPlay#initializeKeymap()}
+     * The repeat interval in input ticks once DAS is active. A value of 0 means instant auto-shift.
      */
-    private static long arrMS;
+    private static int arrTicks;
 
     /**
-     * This Long is used to represent the delay between Soft Drops in milliseconds <br>
-     * It is set with {@link KeyPlay#initializeKeymap()} and -1 equals to instant softdrop which is useful for T-Spins
+     * The repeat interval in input ticks for soft drop when it is not instant.
      */
-    private static long sdfFPS;
+    private static int softDropTicks;
+
+    /**
+     * Whether soft drop should instantly move the piece to the floor.
+     */
+    private static boolean softDropInstant;
 
     /**
      * This Hashmap is used for mapping between the Enums and the KeyEvents and is filled by {@link KeyMenuConfig#initializeKeymap()}
@@ -148,20 +158,46 @@ public enum KeyPlay {
      * Initializes the keymap from a configuration file using the LdataParser.
      */
     public static void initializeKeymap() {
+        playMap.clear();
+        resetAllCounters();
         Map<String, Object> config = LdataParser.loadFrom(OsUtil.getConfigFile("tty-tetris.conf"));
         Map<String, Object> _playMap = (Map) ((Map) config.get("keymap")).get("playMap");
         for (String action : _playMap.keySet()) {
             List<String> keyStrokes = (List) _playMap.get(action);
             for (String keyStroke : keyStrokes) {
-                playMap.put(keyStroke, action);
+                String normalizedKey = KeyBindingUtil.normalizeConfiguredKey(keyStroke);
+                if (normalizedKey != null) {
+                    playMap.put(normalizedKey, action);
+                }
             }
         }
         Map<String, Object> gameplay = (Map) config.get("gameplay");
-        arrMS = ((long) gameplay.get("ARR")) / Constants.KEYLISTENERTIMER;
-        dasMS = ((long) gameplay.get("DAS")) / Constants.KEYLISTENERTIMER;
-        sdfFPS = ((long) gameplay.get("SDF"));
-        if (sdfFPS > 0) {
-            sdfFPS = sdfFPS / Constants.KEYLISTENERTIMER;
+        arrTicks = millisToTicks((long) gameplay.get("ARR"));
+        dasTicks = millisToTicks((long) gameplay.get("DAS"));
+
+        long softDropRate = (long) gameplay.get("SDF");
+        softDropInstant = softDropRate < 0;
+        softDropTicks = softDropInstant ? 1 : dropsPerSecondToTicks(softDropRate);
+    }
+
+    private static int millisToTicks(long millis) {
+        if (millis <= 0) {
+            return 0;
+        }
+        return (int) Math.ceil((double) millis / Constants.KEYLISTENERTIMER);
+    }
+
+    private static int dropsPerSecondToTicks(long dropsPerSecond) {
+        if (dropsPerSecond <= 0) {
+            return 1;
+        }
+        double millisPerDrop = 1000.0 / dropsPerSecond;
+        return Math.max(1, (int) Math.ceil(millisPerDrop / Constants.KEYLISTENERTIMER));
+    }
+
+    private static void resetAllCounters() {
+        for (KeyPlay keyPlay : values()) {
+            keyPlay.counter = 0;
         }
     }
 
@@ -207,7 +243,7 @@ public enum KeyPlay {
      * @return String representing the KeyEvent in lowercase character
      */
     private static String keyStrokeToString(KeyEvent key) {
-        return KeyEvent.getKeyText(key.getKeyCode()).toLowerCase();
+        return KeyBindingUtil.normalizeKeyEvent(key);
     }
 
     @Override

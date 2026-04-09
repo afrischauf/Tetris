@@ -48,6 +48,7 @@ public class PlayOfflineScreen implements Screen, Runnable {
     public static int executeCounter;
 
     public static long firstExecution;
+    private final ScheduledExecutorService keyExecutor;
 
     /**
      * The `pressedKeys` variable represents the set of keys that are currently being pressed.
@@ -69,8 +70,8 @@ public class PlayOfflineScreen implements Screen, Runnable {
     public PlayOfflineScreen(AsciiPanel terminal) {
         field = new TetrisField(1, this, (terminal.getWidthInCharacters() - 12) / 2, 16);
         startTime = System.currentTimeMillis();
-        ScheduledExecutorService repaint = Executors.newSingleThreadScheduledExecutor();
-        repaint.scheduleAtFixedRate(this, 0, Constants.KEYLISTENERTIMER, TimeUnit.MILLISECONDS);
+        keyExecutor = Executors.newSingleThreadScheduledExecutor();
+        keyExecutor.scheduleAtFixedRate(this, 0, Constants.KEYLISTENERTIMER, TimeUnit.MILLISECONDS);
         executeCounter = 0;
     }
 
@@ -83,6 +84,11 @@ public class PlayOfflineScreen implements Screen, Runnable {
      */
     @Override
     public void displayOutput(AsciiPanel terminal) {
+        if (loseScreen) {
+            MainClass.aClass.setScreen(new LoseScreen(field.getLevel(), field.getScore(), System.currentTimeMillis() - startTime));
+            MainClass.aClass.repaint();
+            return;
+        }
         terminal.clear();
         TerminalHelper.writeTetrisLogo(terminal);
         initScreen = false;
@@ -97,12 +103,6 @@ public class PlayOfflineScreen implements Screen, Runnable {
      */
     @Override
     public Screen respondToUserInput(KeyEvent key, AsciiPanel terminal) {
-        if (loseScreen) {
-            MainClass.aClass.screen = new LoseScreen(field.getLevel(), field.getScore(), System.currentTimeMillis() - startTime);
-            field.shutdownThread();
-            MainClass.aClass.repaint();
-            return MainClass.aClass.screen;
-        }
         return this;
     }
 
@@ -158,5 +158,16 @@ public class PlayOfflineScreen implements Screen, Runnable {
             }
         }
         executeCounter++;
+    }
+
+    @Override
+    public void close() {
+        keyExecutor.shutdownNow();
+        field.shutdownThread();
+        synchronized (pressedKeys) {
+            pressedKeys.clear();
+        }
+        loseScreen = false;
+        initScreen = true;
     }
 }

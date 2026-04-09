@@ -202,7 +202,6 @@ public class LobbyScreen implements Screen, Runnable {
                 fetchLobbies();
             } else {
                 exec.shutdownNow();
-                throw new RuntimeException();
             }
         }
     }
@@ -231,6 +230,17 @@ public class LobbyScreen implements Screen, Runnable {
         } else {
             selected++;
         }
+    }
+
+    @Override
+    public void close() {
+        synchronized (runnable) {
+            runnable.set(false);
+        }
+        if (result != null) {
+            result.cancel(true);
+        }
+        exec.shutdownNow();
     }
 
 }

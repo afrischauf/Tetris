@@ -87,6 +87,7 @@ public class MainClass extends JFrame implements KeyListener {
      * This Variable stores the terminal which is used by the Screens to display the output
      */
     private final AsciiPanel terminal;
+    private final ScheduledExecutorService repaintExecutor;
 
     /**
      * Constructor for MainClass
@@ -101,8 +102,8 @@ public class MainClass extends JFrame implements KeyListener {
         pack();
         repaint();
         addKeyListener(this);
-        ScheduledExecutorService repaint = Executors.newSingleThreadScheduledExecutor();
-        repaint.scheduleAtFixedRate(this::repaint, 0, 10, TimeUnit.MILLISECONDS);
+        repaintExecutor = Executors.newSingleThreadScheduledExecutor();
+        repaintExecutor.scheduleAtFixedRate(this::repaint, 0, 10, TimeUnit.MILLISECONDS);
         terminal.addComponentListener(new ComponentAdapter() {
             @Override
             public void componentResized(ComponentEvent e) {
@@ -128,12 +129,11 @@ public class MainClass extends JFrame implements KeyListener {
             int executions = PlayOfflineScreen.executeCounter;
             long shutdownTime = System.currentTimeMillis();
             long starTime = PlayOfflineScreen.firstExecution;
-            long executions_second = executions / ((shutdownTime - starTime) / 1000);
+            long runtimeSeconds = Math.max(1, (shutdownTime - starTime) / 1000);
+            long executions_second = executions / runtimeSeconds;
             System.out.printf("Start: %d\nEnd: %d\nExecutions/s: %d\n", starTime, shutdownTime, executions_second);
-            if (MainClass.aClass.createdGroup) {
-                MainClass.aClass.client.deleteGroup(MainClass.aClass.session, aClass.group_id);
-            } else {
-                MainClass.aClass.client.leaveGroup(MainClass.aClass.session, aClass.group_id);
+            if (MainClass.aClass != null) {
+                MainClass.aClass.cleanupLobbyMembership();
             }
 
         }, "Delete all groups"));
@@ -160,9 +160,61 @@ public class MainClass extends JFrame implements KeyListener {
      */
     public void repaint() {
         SwingUtilities.invokeLater(() -> {
-            screen.displayOutput(terminal);
+            Screen currentScreen = screen;
+            currentScreen.displayOutput(terminal);
             super.repaint();
         });
+    }
+
+    /**
+     * Replaces the current screen and closes the previous one if necessary.
+     *
+     * @param nextScreen the screen to display next
+     * @return the activated screen
+     */
+    public synchronized Screen setScreen(Screen nextScreen) {
+        if (nextScreen == null) {
+            return screen;
+        }
+        Screen previousScreen = screen;
+        if (previousScreen == nextScreen) {
+            return screen;
+        }
+        if (previousScreen != null) {
+            previousScreen.close();
+        }
+        screen = nextScreen;
+        return screen;
+    }
+
+    /**
+     * Cleans up any tracked multiplayer group or match membership.
+     */
+    public synchronized void cleanupLobbyMembership() {
+        if (client == null || session == null || group_id == null || group_id.isEmpty()) {
+            resetMatchState();
+            return;
+        }
+        try {
+            if (createdGroup) {
+                client.deleteGroup(session, group_id);
+            } else {
+                client.leaveGroup(session, group_id);
+            }
+        } catch (RuntimeException e) {
+            log.debug("Failed to clean up lobby membership", e);
+        } finally {
+            resetMatchState();
+        }
+    }
+
+    /**
+     * Clears tracked per-match state after leaving a multiplayer flow.
+     */
+    public synchronized void resetMatchState() {
+        match = null;
+        group_id = "";
+        createdGroup = false;
     }
 
     /**
@@ -207,9 +259,9 @@ public class MainClass extends JFrame implements KeyListener {
     public void keyPressed(KeyEvent key) {
         if (!(screen instanceof PlayOfflineScreen || screen instanceof PlayOnlineScreen)) {
             if (screen.isInsideInputField()) {
-                screen = screen.respondToUserInput(key, terminal);
+                setScreen(screen.respondToUserInput(key, terminal));
             } else {
-                screen = KeyMenuConfig.execute(key, screen, terminal);
+                setScreen(KeyMenuConfig.execute(key, screen, terminal));
             }
         } else if (screen instanceof PlayOfflineScreen) {
             PlayOfflineScreen screen1 = ((PlayOfflineScreen) screen);

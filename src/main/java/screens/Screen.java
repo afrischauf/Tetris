@@ -36,6 +36,12 @@ public interface Screen {
     boolean finishInput();
 
     /**
+     * Releases resources owned by the screen before it is replaced.
+     */
+    default void close() {
+    }
+
+    /**
      * Determines whether the cursor is currently inside an input field.
      *
      * @return true if the cursor is inside an input field, false otherwise
