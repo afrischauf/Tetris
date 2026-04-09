@@ -13,11 +13,12 @@ class GarbagePieceHandlerTest {
         handler.addGarbage(2);
         handler.addGarbage(4);
 
-        int remaining = handler.removeGarbageLines(3);
+        int remaining = handler.removeGarbageLines(1);
 
         assertEquals(0, remaining);
-        assertEquals(1, handler.tetrisGarbageCollector.size());
-        assertEquals(3, handler.tetrisGarbageCollector.get(0).getLines());
+        assertEquals(2, handler.tetrisGarbageCollector.size());
+        assertEquals(1, handler.tetrisGarbageCollector.get(0).getLines());
+        assertEquals(4, handler.tetrisGarbageCollector.get(1).getLines());
     }
 
     @Test
