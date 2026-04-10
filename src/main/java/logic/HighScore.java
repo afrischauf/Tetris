@@ -43,19 +43,13 @@ public class HighScore implements Comparable<HighScore> {
 
     @Override
     public int compareTo(HighScore o) {
-        if (score == o.score) {
-            if (level == o.level) {
-                if (time.equals(o.time)) {
-                    return name.compareTo(o.name);
-                } else {
-                    return time.compareTo(o.time);
-                }
-            } else {
-                return Integer.compare(o.level, level);
-            }
-        } else {
-            return Long.compare(o.score, score);
-        }
+        if (score != o.score)
+            return Long.compare(score, o.score);
+        if (level != o.level)
+            return Integer.compare(level, o.level);
+        if (!time.equals(o.time))
+            return time.compareTo(o.time);
+        return name.compareTo(o.name);
     }
 
     @Override

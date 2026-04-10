@@ -1,10 +1,7 @@
 [tool.semantic_release]
-version_variables = [
-    "pom.xml:revision",
-]
 tag_format = "v{version}"
 commit_parser = "conventional"
-build_command = "mvn -B -DskipTests package"
+build_command = "mvn -B -DskipTests -Drevision=$NEW_VERSION package"
 major_on_zero = false
 
 [tool.semantic_release.branches.main]
